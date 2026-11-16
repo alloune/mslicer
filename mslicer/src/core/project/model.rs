@@ -10,10 +10,13 @@ use common::{
 use nalgebra::Vector3;
 use wgpu::Device;
 
-use slicer::geometry::{
-    bounds::Bounds3D,
-    mesh::{HalfEdgeMesh, Mesh},
-    partitioning::Bvh,
+use slicer::{
+    geometry::{
+        bounds::Bounds3D,
+        mesh::{HalfEdgeMesh, Mesh},
+        partitioning::Bvh,
+    },
+    post_process::hollowing::HollowConfig,
 };
 
 use crate::{
@@ -36,6 +39,7 @@ pub struct Model {
     pub unit: MeshUnit,
     pub color: LinearRgb<f32>,
     pub exposure: u8,
+    pub hollow: HollowConfig,
     pub hidden: bool,
     pub ui: ModelUi,
 
@@ -86,6 +90,7 @@ impl Model {
             color: LinearRgb::splat(1.0),
             hidden: false,
             exposure: 255,
+            hollow: HollowConfig::default(),
             ui: ModelUi::default(),
 
             warnings: MeshWarnings::empty(),
@@ -111,6 +116,11 @@ impl Model {
 
     pub fn with_exposure(mut self, exposure: u8) -> Self {
         self.exposure = exposure;
+        self
+    }
+
+    pub fn with_hollow(mut self, hollow: HollowConfig) -> Self {
+        self.hollow = hollow;
         self
     }
 
@@ -327,6 +337,7 @@ impl Clone for Model {
             ui: self.ui.clone(),
 
             exposure: self.exposure,
+            hollow: self.hollow,
 
             warnings: self.warnings,
             buffers: None,

@@ -13,7 +13,8 @@ use nalgebra::{Vector2, Vector3};
 use slicer::{
     geometry::mesh::MeshId,
     post_process::{
-        elephant_foot_fixer::ElephantFootFixer, variable_layer_height::VariableLayerHeight,
+        elephant_foot_fixer::ElephantFootFixer, hollowing::HollowConfig,
+        variable_layer_height::VariableLayerHeight,
     },
 };
 
@@ -95,6 +96,7 @@ pub enum ModelAction {
     Scale(Vector3<f32>),
     Rotation(Vector3<f32>),
     RelativeExposure(u8),
+    Hollow(HollowConfig),
     Collection(Option<CollectionId>),
     Move(usize, Option<CollectionId>),
 }
@@ -328,6 +330,7 @@ impl ModelAction {
             Self::Scale(_) => ActionDescription::new("Scaled Model"),
             Self::Rotation(_) => ActionDescription::new("Rotated Model"),
             Self::RelativeExposure(_) => ActionDescription::new("Changed Model Exposure"),
+            Self::Hollow(_) => ActionDescription::new("Changed Model Hollowing"),
             Self::Collection(_) => ActionDescription::new("Changed Model Collection"),
             Self::Move(..) => ActionDescription::new("Moved Model"),
         }
@@ -361,6 +364,7 @@ impl ModelAction {
             Self::RelativeExposure(exposure) => {
                 Self::RelativeExposure(mem::replace(&mut model.exposure, exposure))
             }
+            Self::Hollow(hollow) => Self::Hollow(mem::replace(&mut model.hollow, hollow)),
             Self::Collection(collection) => {
                 Self::Collection(mem::replace(&mut model.collection, collection))
             }

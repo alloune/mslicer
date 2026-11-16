@@ -16,7 +16,8 @@ use common::{
 use slicer::{
     geometry::mesh::{Mesh, MeshInner},
     post_process::{
-        elephant_foot_fixer::ElephantFootFixer, variable_layer_height::VariableLayerHeight,
+        elephant_foot_fixer::ElephantFootFixer, hollowing::HollowConfig,
+        variable_layer_height::VariableLayerHeight,
     },
 };
 
@@ -24,6 +25,7 @@ use slicer::{
 /// changes, even in development so anyone using the dev/prerelease versions
 /// don't ruin their projects.
 ///
+/// - v17 (fork) — Added per model hollowing settings.
 /// - v16 (v0.10.0) — Added project notes and an ignored section with info about
 ///   the format in ASCII.
 /// - v15 (v0.10.0) — Store first layers and transition layers as either a layer
@@ -46,7 +48,7 @@ use slicer::{
 /// - v3 (v0.6.0) — Added the PWM value to SliceConfig -> ExposureConfig.
 /// - v2 (v0.5.0) — A complete rewrite using a custom serilizer/deserilizer
 ///   because of the bincode drama...
-const VERSION: u16 = 16;
+const VERSION: u16 = 17;
 const DESCRIPTION: &str = concatcp!(
     "Saved by mslicer v",
     crate::VERSION,
@@ -66,6 +68,8 @@ struct ModelInfo {
     position: Vector3<f32>,
     scale: Vector3<f32>,
     rotation: Vector3<f32>,
+
+    hollow: HollowConfig,
 }
 
 impl ModelInfo {
@@ -81,6 +85,7 @@ impl ModelInfo {
             position: model.mesh.position(),
             scale: model.mesh.scale(),
             rotation: model.mesh.rotation(),
+            hollow: model.hollow,
         }
     }
 
@@ -95,6 +100,7 @@ impl ModelInfo {
             .with_name(self.name)
             .with_color(self.color.into())
             .with_exposure(self.exposure)
+            .with_hollow(self.hollow)
             .with_hidden(self.hidden)
             .with_collection(self.collection)
             .with_unit(self.unit)
@@ -123,6 +129,9 @@ impl ModelInfo {
         self.position.serialize(ser);
         self.scale.serialize(ser);
         self.rotation.serialize(ser);
+
+        // Post processing
+        self.hollow.serialize(ser);
     }
 
     pub fn deserialize<T: Deserializer>(des: &mut T, version: u16) -> Self {
@@ -150,6 +159,11 @@ impl ModelInfo {
             position: Vector3::<f32>::deserialize(des),
             scale: Vector3::<f32>::deserialize(des),
             rotation: Vector3::<f32>::deserialize(des),
+            hollow: if version < 17 {
+                HollowConfig::default()
+            } else {
+                HollowConfig::deserialize(des)
+            },
         }
     }
 }
@@ -331,5 +345,37 @@ fn deserialize_mesh_inner<T: Deserializer>(des: &mut T, progress: &Progress) -> 
     MeshInner {
         vertices: verts.into_boxed_slice(),
         faces: faces.into_boxed_slice(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common::{
+        serde::{DynamicSerializer, SliceDeserializer},
+        units::Milimeters,
+    };
+    use slicer::{geometry::mesh::Mesh, post_process::hollowing::HollowConfig};
+
+    use super::{ModelInfo, VERSION};
+    use crate::core::project::model::Model;
+
+    fn round_trip(model: &Model, version: u16) -> ModelInfo {
+        let mut ser = DynamicSerializer::new();
+        ModelInfo::new(0, model).serialize(&mut ser);
+        let data = ser.into_inner();
+        ModelInfo::deserialize(&mut SliceDeserializer::new(&data), version)
+    }
+
+    #[test]
+    fn hollowing_settings_are_saved() {
+        let hollow = HollowConfig {
+            enabled: true,
+            wall_thickness: Milimeters::new(1.5),
+        };
+        let model = Model::from_mesh(Mesh::default()).with_hollow(hollow);
+
+        let info = round_trip(&model, VERSION);
+        assert_eq!(info.hollow, hollow);
+        assert_eq!(info.exposure, model.exposure);
     }
 }

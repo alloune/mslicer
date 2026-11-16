@@ -23,6 +23,7 @@ use crate::{
 use common::{progress::CombinedProgress, slice::SliceMode, units::Milimeter};
 use slicer::{
     geometry::{bounds::Bounds3D, mesh::Mesh},
+    post_process::hollowing::HollowTarget,
     slicer::{Slicer, SlicerModel},
 };
 
@@ -67,6 +68,7 @@ impl App {
 
         // Transform models from world-space to platform-space
         let mut out = Vec::new();
+        let mut hollow_targets = Vec::new();
         let mut preview_models = Vec::new();
 
         let mut triangles = 0;
@@ -83,6 +85,12 @@ impl App {
 
             transform_mesh(&mut mesh, mm_to_px, offset);
             triangles += mesh.face_count() as u64;
+            if model.hollow.enabled {
+                hollow_targets.push(HollowTarget {
+                    mesh: mesh.clone(),
+                    wall_thickness: model.hollow.wall_thickness,
+                });
+            }
             let bounds = Bounds3D::from_mesh(&mesh); // todo: no need to reaclc since only translation and scale are applied
             out.push(SlicerModel {
                 mesh,
@@ -139,7 +147,12 @@ impl App {
                 match slicer.slice_config.mode {
                     SliceMode::Raster => {
                         let mut layers = slicer.slice_raster();
-                        post_processing.process(&slicer.slice_config, &mut layers, post_process);
+                        post_processing.process(
+                            &slicer.slice_config,
+                            &mut layers,
+                            &hollow_targets,
+                            post_process,
+                        );
                         slice_operation.add_raster_result(slicer.slice_config, layers, triangles);
                     }
                     SliceMode::Vector => {

@@ -15,10 +15,11 @@ use common::{
     progress::Progress,
     serde::{DynamicSerializer, ReaderDeserializer},
     slice::{SliceConfig, format::RasterFormat},
-    units::Milimeter,
+    units::{Milimeter, Milimeters},
 };
 use slicer::{
     geometry::{bounds::Bounds3D, mesh::Mesh},
+    post_process::hollowing::{HollowTarget, hollow},
     slicer::{Slicer, SlicerModel},
     util::export_raster,
 };
@@ -77,6 +78,15 @@ fn main() -> Result<()> {
         });
     }
 
+    let hollow_targets = (args.hollow.iter())
+        .flat_map(|&wall| {
+            meshes.iter().map(move |model| HollowTarget {
+                mesh: model.mesh.clone(),
+                wall_thickness: Milimeters::new(wall),
+            })
+        })
+        .collect::<Vec<_>>();
+
     let slicer = Slicer::new(slice_config.clone(), meshes);
     let slicing_progress = slicer.progress();
     let encoding_progress = Progress::new();
@@ -91,7 +101,13 @@ fn main() -> Result<()> {
     };
 
     let handle = thread::spawn(clone!([{ encoding_progress } as p], move || {
-        let layers = slicer.slice_raster();
+        let mut layers = slicer.slice_raster();
+        hollow(
+            &slicer.slice_config,
+            &mut layers,
+            &hollow_targets,
+            Progress::new(),
+        );
         let voxels = (layers.iter())
             .flat_map(|x| x.data.iter().filter(|x| x.value != 0).map(|x| x.length))
             .sum::<u64>();

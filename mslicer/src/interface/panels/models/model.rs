@@ -1,6 +1,6 @@
 use common::{
     misc::{separate_thousands, subscript_number},
-    units::Centimeter,
+    units::{Centimeter, Milimeter, Milimeters},
 };
 use const_format::concatcp;
 use egui::{
@@ -37,6 +37,7 @@ const WARN_OUT_OF_BOUNDS: &str = "This mesh extends beyond the printer volume an
 const SUPPORTABLE_TIP: &str =
     "Acceleration structures have been built for this mesh.\nSupports can be placed or generated.";
 const UNIT_TIP: &str = "Common polygon mesh formats like .stl and .obj don't include unit information. For this reason you need to manually specify the units for each mesh, although Millimeters, the default, is often correct.";
+const HOLLOW_TIP: &str = "Removes the inside of the model when slicing, keeping walls of the given thickness. Saves resin and reduces suction forces.\nAdd drain holes so uncured resin can escape the cavity.";
 const CUSTOM_UNIT_TIP: &str = "To use a custom unit, input the conversion factor from the input unit to Millimeters. For example if your mesh was defined in feet (for some reason) you would use 30.48.";
 
 pub fn model_entry(
@@ -337,6 +338,42 @@ pub fn model_properties(
                 });
             });
         });
+
+    ui.collapsing("Hollowing", |ui| {
+        grid("model_hollow_grid").show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Hollow");
+                ui.label(INFO).on_hover_text(HOLLOW_TIP);
+            });
+            let mut enabled = model.hollow.enabled;
+            if ui.checkbox(&mut enabled, "").changed() {
+                app.history
+                    .track_model(id, ModelAction::Hollow(model.hollow));
+                model.hollow.enabled = enabled;
+            }
+            ui.end_row();
+
+            ui.label("Wall Thickness");
+            let mut wall = model.hollow.wall_thickness.get::<Milimeter>();
+            let editing = being_edited(
+                &ui.add_enabled(
+                    model.hollow.enabled,
+                    DragValue::new(&mut wall)
+                        .range(0.5..=20.0)
+                        .speed(0.05)
+                        .max_decimals(2)
+                        .suffix(" mm"),
+                ),
+            );
+
+            history_tracked_model(
+                (editing, ui, &mut app.history),
+                (id, || ModelAction::Hollow(model.hollow)),
+            );
+            editing.then(|| model.hollow.wall_thickness = Milimeters::new(wall));
+            ui.end_row();
+        });
+    });
 
     ui.collapsing("Miscellaneous", |ui| {
         grid("model_props_grid").show(ui, |ui| {

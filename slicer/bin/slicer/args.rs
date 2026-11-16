@@ -76,6 +76,10 @@ pub struct Args {
     /// layer, in mm/min.
     pub first_retract_speed: f32,
 
+    #[arg(long, value_name = "WALL_MM")]
+    /// Hollow all models, keeping walls of the given thickness in mm.
+    pub hollow: Option<f32>,
+
     #[arg(long)]
     /// Path to a preview image, will be scaled as needed.
     pub preview: Option<PathBuf>,

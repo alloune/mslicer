@@ -11,7 +11,9 @@ use common::{
     units::Milimeters,
 };
 use slicer::post_process::{
-    elephant_foot_fixer::ElephantFootFixer, variable_layer_height::VariableLayerHeight,
+    elephant_foot_fixer::ElephantFootFixer,
+    hollowing::{HollowTarget, hollow},
+    variable_layer_height::VariableLayerHeight,
 };
 use tools::supports::{auto::PlacementConfig, mesh::SupportPreset};
 
@@ -147,12 +149,16 @@ impl PostProcessing {
         &self,
         config: &SliceConfig,
         layers: &mut Vec<Layer>,
-        progress: CombinedProgress<2>,
+        hollow_targets: &[HollowTarget],
+        progress: CombinedProgress<3>,
     ) {
+        // Hollowing needs the layers in their original order and count, so it
+        // has to run before variable layer height merges any of them.
+        hollow(config, layers, hollow_targets, progress[0].clone());
         self.variable_layer_height
-            .post_slice(config, layers, progress[0].clone());
-        self.elephant_foot_fixer
             .post_slice(config, layers, progress[1].clone());
+        self.elephant_foot_fixer
+            .post_slice(config, layers, progress[2].clone());
     }
 }
 
