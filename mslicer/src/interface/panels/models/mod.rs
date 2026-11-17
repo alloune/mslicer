@@ -24,6 +24,7 @@ use crate::{
 };
 
 mod collection;
+mod cut;
 mod model;
 
 enum UiAction {
@@ -55,8 +56,13 @@ pub fn ui(app: &mut App, ui: &mut Ui, ctx: &Context) {
     {
         let mut action = UiAction::None;
         pannel.show_inside(ui, |ui| {
-            ui.add_space(4.0);
-            model_properties(app, ui, ctx, &mut action, model)
+            // Expanded sections can be taller than the panel.
+            ScrollArea::vertical()
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    ui.add_space(4.0);
+                    model_properties(app, ui, ctx, &mut action, model)
+                });
         });
 
         match action {

@@ -6,6 +6,7 @@ use egui_phosphor::regular::{CURSOR_CLICK, DROP_HALF_BOTTOM, LINE_SEGMENT, TRIAN
 use egui_tracing::EventCollector;
 use nalgebra::{Matrix4, Vector2, Vector3};
 use slicer::{geometry::mesh::Mesh, post_process::hollowing::DrainHole};
+use tools::cut::TenonConfig;
 use wgpu::Device;
 
 use crate::{
@@ -39,6 +40,7 @@ pub struct UiState {
     pub selected_supports: SelectedSupports,
     pub support_preview: Option<Mesh>,
     pub drain_hole: DrainHoleTool,
+    pub cut: CutTool,
     pub selected_remap_point: Option<u8>,
 
     // remote send ui
@@ -97,6 +99,63 @@ pub struct DrainHoleTool {
     /// The existing hole (model, index) hovered while Ctrl is held, that
     /// clicking would remove.
     pub hovered: Option<(ModelId, usize)>,
+}
+
+/// Settings of the Cut section of the model panel.
+#[derive(Default)]
+pub struct CutTool {
+    pub axis: CutAxis,
+    /// Position of the plane across the model along the axis (0 to 1), so it
+    /// follows the model when it is moved or scaled.
+    pub fraction: f32,
+    /// Puts the pegs on the part with the higher coordinates.
+    pub flip: bool,
+    pub tenons: TenonConfig,
+
+    /// The model `fraction` was set for.
+    pub model: Option<ModelId>,
+    /// Whether the cut settings are shown this frame, which shows the preview.
+    pub visible: bool,
+    /// World space lines of the cut outline and plane.
+    pub preview: Vec<[Vector3<f32>; 2]>,
+    pub preview_key: Option<(ModelId, Matrix4<f32>, CutAxis, Vector3<f32>)>,
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CutAxis {
+    X,
+    Y,
+    #[default]
+    Z,
+}
+
+impl CutAxis {
+    pub const ALL: [Self; 3] = [Self::X, Self::Y, Self::Z];
+
+    pub fn vector(&self) -> Vector3<f32> {
+        match self {
+            Self::X => Vector3::x(),
+            Self::Y => Vector3::y(),
+            Self::Z => Vector3::z(),
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::X => "X",
+            Self::Y => "Y",
+            Self::Z => "Z",
+        }
+    }
+
+    /// Names of the lower and higher side of the plane.
+    pub fn side_names(&self) -> [&'static str; 2] {
+        match self {
+            Self::X => ["Left Part", "Right Part"],
+            Self::Y => ["Front Part", "Back Part"],
+            Self::Z => ["Bottom Part", "Top Part"],
+        }
+    }
 }
 
 impl Default for DrainHoleTool {

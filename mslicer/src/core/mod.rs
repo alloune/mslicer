@@ -145,6 +145,7 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint();
         self.set_title(ctx);
+        self.state.cut.visible = false;
         save_before_close(self, ctx);
 
         self.config.keybinds.update(ctx);

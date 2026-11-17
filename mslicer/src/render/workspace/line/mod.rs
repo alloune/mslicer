@@ -22,13 +22,15 @@ use crate::{
         util::ResizingBuffer,
         workspace::line::{
             bounding_box::BoundingBoxDispatch, build_plate::BuildPlateDispatch,
-            line_support_debug::LineSupportDebugDispatch, normals::NormalsDispatch,
+            cut_preview::CutPreviewDispatch, line_support_debug::LineSupportDebugDispatch,
+            normals::NormalsDispatch,
         },
     },
 };
 
 mod bounding_box;
 mod build_plate;
+mod cut_preview;
 mod line_support_debug;
 mod normals;
 
@@ -54,6 +56,7 @@ pub struct LineDispatch {
 
     bounding_box: BoundingBoxDispatch,
     build_plate: BuildPlateDispatch,
+    cut_preview: CutPreviewDispatch,
     line_support_debug: LineSupportDebugDispatch,
     normals: NormalsDispatch,
 }
@@ -101,6 +104,7 @@ impl LineDispatch {
 
             bounding_box: BoundingBoxDispatch::new(),
             build_plate: BuildPlateDispatch::new(),
+            cut_preview: CutPreviewDispatch::new(),
             line_support_debug: LineSupportDebugDispatch::new(),
             normals: NormalsDispatch::new(),
         }
@@ -110,6 +114,7 @@ impl LineDispatch {
         let dispatches: &mut [&mut dyn LineGenerator] = &mut [
             &mut self.bounding_box,
             &mut self.build_plate,
+            &mut self.cut_preview,
             &mut self.line_support_debug,
             &mut self.normals,
         ];
@@ -120,6 +125,7 @@ impl LineDispatch {
         let lines = &[
             self.bounding_box.lines(),
             self.build_plate.lines(),
+            self.cut_preview.lines(),
             self.line_support_debug.lines(),
             self.normals.lines(),
         ][..];

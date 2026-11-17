@@ -1,4 +1,5 @@
 pub mod auto_layout;
+pub mod cut;
 mod exposure;
 pub mod graphics_3d;
 pub mod misc;

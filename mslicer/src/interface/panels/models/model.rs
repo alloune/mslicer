@@ -14,6 +14,7 @@ use egui_phosphor::regular::{
 };
 use nalgebra::Vector3;
 
+use super::cut;
 use crate::{
     core::{
         App,
@@ -426,6 +427,9 @@ pub fn model_properties(
             }
         });
     });
+
+    cut::cut_section(app, ui, i);
+    let model = &mut app.project.models[i];
 
     ui.collapsing("Miscellaneous", |ui| {
         grid("model_props_grid").show(ui, |ui| {
