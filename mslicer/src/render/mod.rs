@@ -8,8 +8,12 @@ use crate::render::{
     interface::basis::BasisPipeline,
     slice_preview::{SlicePreviewPipeline, SlicePreviewRenderResources},
     workspace::{
-        WorkspaceRenderResources, drain_hole::DrainHolePipeline, line::LineDispatch,
-        model::ModelPipeline, point::PointDispatch, support::SupportPipeline,
+        WorkspaceRenderResources,
+        drain_hole::{DrainHoleKind, DrainHolePipeline},
+        line::LineDispatch,
+        model::ModelPipeline,
+        point::PointDispatch,
+        support::SupportPipeline,
     },
 };
 
@@ -51,7 +55,8 @@ pub fn init_wgpu(cc: &CreationContext) -> RenderState {
     resources.insert(WorkspaceRenderResources {
         model: ModelPipeline::new(device, texture),
         support: SupportPipeline::new(device, texture),
-        drain_hole: DrainHolePipeline::new(device, texture),
+        drain_hole: DrainHolePipeline::new(device, texture, DrainHoleKind::Placed),
+        drain_hole_remove: DrainHolePipeline::new(device, texture, DrainHoleKind::Remove),
         point: PointDispatch::new(device, texture),
         solid_line: LineDispatch::new(device, texture),
     });

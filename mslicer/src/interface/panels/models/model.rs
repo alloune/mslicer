@@ -38,7 +38,7 @@ const SUPPORTABLE_TIP: &str =
     "Acceleration structures have been built for this mesh.\nSupports can be placed or generated.";
 const UNIT_TIP: &str = "Common polygon mesh formats like .stl and .obj don't include unit information. For this reason you need to manually specify the units for each mesh, although Millimeters, the default, is often correct.";
 const HOLLOW_TIP: &str = "Removes the inside of the model when slicing, keeping walls of the given thickness. Saves resin and reduces suction forces.\nAdd drain holes so uncured resin can escape the cavity. Cavities smaller than 0.05 mL are left solid.";
-const DRAIN_HOLE_TIP: &str = "Drain holes let uncured resin flow out of the cavity and air in, which avoids suction forces while printing.\nSelect the drain hole tool (4) in the viewport toolbar, then click on the model to place one. Placing two holes near the bottom of the print works best.";
+const DRAIN_HOLE_TIP: &str = "Drain holes let uncured resin flow out of the cavity and air in, which avoids suction forces while printing.\nSelect the drain hole tool (4) in the viewport toolbar, then click on the model to place one. Hold Ctrl and click on a hole to remove it. Placing two holes near the bottom of the print works best.";
 const CUSTOM_UNIT_TIP: &str = "To use a custom unit, input the conversion factor from the input unit to Millimeters. For example if your mesh was defined in feet (for some reason) you would use 30.48.";
 
 pub fn model_entry(

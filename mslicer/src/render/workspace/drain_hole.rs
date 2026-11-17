@@ -22,8 +22,20 @@ use crate::{
 
 /// Number of sides of the cylinders drawn for drain holes.
 const PRECISION: u32 = 32;
+const PLACED_COLOR: Vector3<f32> = Vector3::new(1.0, 0.45, 0.1);
+const REMOVE_COLOR: Vector3<f32> = Vector3::new(0.95, 0.1, 0.1);
+
+/// Which drain holes a pipeline draws.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum DrainHoleKind {
+    /// Every placed hole and the one under the cursor, in orange.
+    Placed,
+    /// The hole hovered with Ctrl held, that a click would remove, in red.
+    Remove,
+}
 
 pub struct DrainHolePipeline {
+    kind: DrainHoleKind,
     render_pipeline: RenderPipeline,
     bind_group: BindGroup,
 
@@ -37,10 +49,11 @@ pub struct DrainHolePipeline {
 struct DrainHoleUniforms {
     transform: Matrix4<f32>,
     camera_direction: Vector3<f32>,
+    color: Vector3<f32>,
 }
 
 impl DrainHolePipeline {
-    pub fn new(device: &Device, texture: TextureFormat) -> Self {
+    pub fn new(device: &Device, texture: TextureFormat, kind: DrainHoleKind) -> Self {
         let shader = device
             .create_shader_module(include_shader!("workspace/drain_hole.wgsl", "common.wgsl"));
 
@@ -91,6 +104,7 @@ impl DrainHolePipeline {
         });
 
         Self {
+            kind,
             render_pipeline,
             bind_group,
 
@@ -108,6 +122,10 @@ impl DrainHolePipeline {
         let uniform = DrainHoleUniforms {
             transform: app.view_projection(),
             camera_direction: app.camera.position(1.0),
+            color: match self.kind {
+                DrainHoleKind::Placed => PLACED_COLOR,
+                DrainHoleKind::Remove => REMOVE_COLOR,
+            },
         };
 
         let mut buffer = UniformBuffer::new(Vec::new());
@@ -115,7 +133,7 @@ impl DrainHolePipeline {
         gcx.queue
             .write_buffer(&self.uniform_buffer, 0, &buffer.into_inner());
 
-        let Some(mesh) = drain_hole_mesh(app) else {
+        let Some(mesh) = drain_hole_mesh(app, self.kind) else {
             self.index_count = 0;
             return;
         };
@@ -139,20 +157,36 @@ impl DrainHolePipeline {
     }
 }
 
-/// Builds the cylinders of every drain hole of the visible models, plus the
-/// one under the cursor when the placement tool is active.
-fn drain_hole_mesh(app: &App) -> Option<Mesh> {
+/// Builds the cylinders of the drain holes of the given kind.
+fn drain_hole_mesh(app: &App, kind: DrainHoleKind) -> Option<Mesh> {
     let mut builder = MeshBuilder::new();
-    let preview = app.state.drain_hole.preview.iter();
+    let tool = &app.state.drain_hole;
+    let model = |id| app.project.models.iter().find(|x| x.id == id);
 
-    let models = app.project.models.iter().filter(|x| !x.hidden);
-    let holes = models.flat_map(|model| model.drain_holes.iter().map(move |x| (model, x)));
-    let preview = preview.filter_map(|(id, hole)| {
-        let model = app.project.models.iter().find(|x| x.id == *id)?;
-        Some((model, hole))
-    });
+    let mut holes = Vec::new();
+    match kind {
+        DrainHoleKind::Placed => {
+            for model in app.project.models.iter().filter(|x| !x.hidden) {
+                for (i, hole) in model.drain_holes.iter().enumerate() {
+                    if tool.hovered != Some((model.id, i)) {
+                        holes.push((model, hole));
+                    }
+                }
+            }
 
-    for (model, hole) in holes.chain(preview) {
+            let preview = tool.preview.as_ref();
+            holes.extend(preview.and_then(|(id, hole)| Some((model(*id)?, hole))));
+        }
+        DrainHoleKind::Remove => {
+            let hovered = tool.hovered.and_then(|(id, i)| {
+                let model = model(id)?;
+                Some((model, model.drain_holes.get(i)?))
+            });
+            holes.extend(hovered);
+        }
+    }
+
+    for (model, hole) in holes {
         let wall = model.hollow.wall_thickness.raw();
         let (start, end) = hole.world_axis(&model.mesh, wall);
         builder.add_cylinder((start, end), (hole.radius, hole.radius), PRECISION);

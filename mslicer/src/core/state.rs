@@ -94,6 +94,9 @@ pub struct DrainHoleTool {
     pub diameter: f32,
     /// The hole that clicking would place, on the hovered model.
     pub preview: Option<(ModelId, DrainHole)>,
+    /// The existing hole (model, index) hovered while Ctrl is held, that
+    /// clicking would remove.
+    pub hovered: Option<(ModelId, usize)>,
 }
 
 impl Default for DrainHoleTool {
@@ -101,6 +104,7 @@ impl Default for DrainHoleTool {
         Self {
             diameter: 3.0,
             preview: None,
+            hovered: None,
         }
     }
 }
@@ -195,7 +199,7 @@ impl Tool {
             Tool::Select => "Select (Default)",
             Tool::Support => "Support Placement",
             Tool::Orient => "Orient to Face",
-            Tool::DrainHole => "Drain Hole Placement",
+            Tool::DrainHole => "Drain Hole Placement\nCtrl + click on a hole to remove it",
         }
     }
 }

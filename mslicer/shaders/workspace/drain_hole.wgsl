@@ -2,7 +2,8 @@
 
 struct Context {
     transform: mat4x4f,
-    camera_direction: vec3f
+    camera_direction: vec3f,
+    color: vec3f
 }
 
 struct VertexOutput {
@@ -17,7 +18,8 @@ fn vert(@location(0) position: vec4f) -> VertexOutput {
 
 @fragment
 fn frag(in: VertexOutput) -> @location(0) vec4f {
-    // Drain holes are drawn in orange so they stand out from models and supports.
+    // Flat colors (orange, or red for the hole about to be removed) so drain
+    // holes stand out from models and supports.
     let intensity = blinn_phong(screen_normal(in.world_position), ctx.camera_direction);
-    return vec4(vec3(1.0, 0.45, 0.1) * (0.35 + 0.65 * intensity), 1.0);
+    return vec4(ctx.color * (0.35 + 0.65 * intensity), 1.0);
 }
