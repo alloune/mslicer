@@ -16,7 +16,8 @@ use common::{
 use slicer::{
     geometry::mesh::{Mesh, MeshInner},
     post_process::{
-        elephant_foot_fixer::ElephantFootFixer, hollowing::HollowConfig,
+        elephant_foot_fixer::ElephantFootFixer,
+        hollowing::{DrainHole, HollowConfig},
         variable_layer_height::VariableLayerHeight,
     },
 };
@@ -25,6 +26,7 @@ use slicer::{
 /// changes, even in development so anyone using the dev/prerelease versions
 /// don't ruin their projects.
 ///
+/// - v18 (fork) — Added per model drain holes.
 /// - v17 (fork) — Added per model hollowing settings.
 /// - v16 (v0.10.0) — Added project notes and an ignored section with info about
 ///   the format in ASCII.
@@ -48,7 +50,7 @@ use slicer::{
 /// - v3 (v0.6.0) — Added the PWM value to SliceConfig -> ExposureConfig.
 /// - v2 (v0.5.0) — A complete rewrite using a custom serilizer/deserilizer
 ///   because of the bincode drama...
-const VERSION: u16 = 17;
+const VERSION: u16 = 18;
 const DESCRIPTION: &str = concatcp!(
     "Saved by mslicer v",
     crate::VERSION,
@@ -70,6 +72,7 @@ struct ModelInfo {
     rotation: Vector3<f32>,
 
     hollow: HollowConfig,
+    drain_holes: Vec<DrainHole>,
 }
 
 impl ModelInfo {
@@ -86,6 +89,7 @@ impl ModelInfo {
             scale: model.mesh.scale(),
             rotation: model.mesh.rotation(),
             hollow: model.hollow,
+            drain_holes: model.drain_holes.clone(),
         }
     }
 
@@ -101,6 +105,7 @@ impl ModelInfo {
             .with_color(self.color.into())
             .with_exposure(self.exposure)
             .with_hollow(self.hollow)
+            .with_drain_holes(self.drain_holes)
             .with_hidden(self.hidden)
             .with_collection(self.collection)
             .with_unit(self.unit)
@@ -132,6 +137,10 @@ impl ModelInfo {
 
         // Post processing
         self.hollow.serialize(ser);
+        ser.write_u32_be(self.drain_holes.len() as u32);
+        for hole in self.drain_holes.iter() {
+            hole.serialize(ser);
+        }
     }
 
     pub fn deserialize<T: Deserializer>(des: &mut T, version: u16) -> Self {
@@ -163,6 +172,12 @@ impl ModelInfo {
                 HollowConfig::default()
             } else {
                 HollowConfig::deserialize(des)
+            },
+            drain_holes: if version < 18 {
+                Vec::new()
+            } else {
+                let count = des.read_u32_be();
+                (0..count).map(|_| DrainHole::deserialize(des)).collect()
             },
         }
     }
@@ -354,7 +369,11 @@ mod tests {
         serde::{DynamicSerializer, SliceDeserializer},
         units::Milimeters,
     };
-    use slicer::{geometry::mesh::Mesh, post_process::hollowing::HollowConfig};
+    use nalgebra::Vector3;
+    use slicer::{
+        geometry::mesh::Mesh,
+        post_process::hollowing::{DrainHole, HollowConfig},
+    };
 
     use super::{ModelInfo, VERSION};
     use crate::core::project::model::Model;
@@ -372,10 +391,25 @@ mod tests {
             enabled: true,
             wall_thickness: Milimeters::new(1.5),
         };
-        let model = Model::from_mesh(Mesh::default()).with_hollow(hollow);
+        let holes = vec![
+            DrainHole {
+                position: Vector3::new(1.0, 2.0, 3.0),
+                normal: Vector3::new(0.0, 0.0, 1.0),
+                radius: 1.5,
+            },
+            DrainHole {
+                position: Vector3::new(-4.0, 5.5, 0.25),
+                normal: Vector3::new(1.0, 0.0, 0.0),
+                radius: 0.75,
+            },
+        ];
+        let model = Model::from_mesh(Mesh::default())
+            .with_hollow(hollow)
+            .with_drain_holes(holes.clone());
 
         let info = round_trip(&model, VERSION);
         assert_eq!(info.hollow, hollow);
+        assert_eq!(info.drain_holes, holes);
         assert_eq!(info.exposure, model.exposure);
     }
 }

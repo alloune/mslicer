@@ -5,7 +5,10 @@ use crate::interface::components::grid;
 
 macro_rules! keybinds {
     ($(($field:ident, $keybind:ident, $name:expr) => ($modif:expr, $key:expr)),*) => {
+        // Missing keybinds (added in a newer version) use their default
+        // instead of failing to load the whole config.
         #[derive(Clone, Serialize, Deserialize)]
+        #[serde(default)]
         pub struct Keybinds {
             #[serde(skip)]
             editing: Option<Keybind>,
@@ -59,6 +62,7 @@ keybinds![
     (pointer, Pointer, "Pointer") => (Modifiers::NONE, Key::Num1),
     (support, Support, "Support") => (Modifiers::NONE, Key::Num2),
     (orient, Orient, "Orient") => (Modifiers::NONE, Key::Num3),
+    (drain_hole, DrainHole, "Drain Hole") => (Modifiers::NONE, Key::Num4),
 
     (delete, Delete, "Delete") => (Modifiers::NONE, Key::D),
     (collect, Collect, "Collect") => (Modifiers::NONE, Key::G),
@@ -152,7 +156,7 @@ impl Keybinds {
         self.shortcut_section(ui, "General", &[ImportModel, ImportSliced,
             LoadTeapot, SaveProject, SaveAsProject, NewProject, LoadProject,
             Quit, Slice, Undo, Redo, Layout, SelectAll, SelectNone]);
-        self.shortcut_section(ui, "Tools", &[Pointer, Support, Orient]);
+        self.shortcut_section(ui, "Tools", &[Pointer, Support, Orient, DrainHole]);
         self.shortcut_section(ui, "Selection", &[Delete, Collect, Duplicate,
             Rename, Hide, Select, Align, Split]);
     }

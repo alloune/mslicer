@@ -83,6 +83,7 @@ fn main() -> Result<()> {
             meshes.iter().map(move |model| HollowTarget {
                 mesh: model.mesh.clone(),
                 wall_thickness: Milimeters::new(wall),
+                drain_holes: Vec::new(),
             })
         })
         .collect::<Vec<_>>();

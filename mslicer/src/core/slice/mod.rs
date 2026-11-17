@@ -37,6 +37,8 @@ pub struct SliceOperationInner {
     pub progress: Progress,
     pub post_processing_progress: CombinedProgress<3>,
     pub result: Mutex<Option<SliceResult>>,
+    /// Problems found while slicing, shown to the user once done.
+    pub warnings: Mutex<Vec<String>>,
 
     pub previews: Mutex<Option<PreviewImage>>,
     pub interactive_previews: Option<InteractivePreviews>,
@@ -64,6 +66,7 @@ impl SliceOperation {
                 progress: slice,
                 post_processing_progress: post_process,
                 result: Mutex::new(None),
+                warnings: Mutex::new(Vec::new()),
 
                 previews: Mutex::new(Default::default()),
                 interactive_previews,

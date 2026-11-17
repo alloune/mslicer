@@ -23,7 +23,7 @@ use crate::{
 use common::{progress::CombinedProgress, slice::SliceMode, units::Milimeter};
 use slicer::{
     geometry::{bounds::Bounds3D, mesh::Mesh},
-    post_process::hollowing::HollowTarget,
+    post_process::hollowing::{Cylinder, HollowTarget},
     slicer::{Slicer, SlicerModel},
 };
 
@@ -69,6 +69,7 @@ impl App {
         // Transform models from world-space to platform-space
         let mut out = Vec::new();
         let mut hollow_targets = Vec::new();
+        let mut hollow_names = Vec::new();
         let mut preview_models = Vec::new();
 
         let mut triangles = 0;
@@ -78,6 +79,20 @@ impl App {
             // preview
             bounds.extend(&model.bounds);
             preview_models.push(PreviewModel::for_model(device, &mut model));
+
+            // Drain holes, from world space to platform millimeters.
+            let wall = model.hollow.wall_thickness.get::<Milimeter>();
+            let shift = (platform_size / 2.0).push(-slice_height / 2.0);
+            let drain_holes = (model.drain_holes.iter())
+                .map(|hole| {
+                    let (start, end) = hole.world_axis(&model.mesh, wall);
+                    Cylinder {
+                        start: start + shift,
+                        end: end + shift,
+                        radius: hole.radius,
+                    }
+                })
+                .collect::<Vec<_>>();
 
             // slicing
             let (mut mesh, exposure) = (model.mesh, model.exposure);
@@ -89,7 +104,9 @@ impl App {
                 hollow_targets.push(HollowTarget {
                     mesh: mesh.clone(),
                     wall_thickness: model.hollow.wall_thickness,
+                    drain_holes,
                 });
+                hollow_names.push(model.name.clone());
             }
             let bounds = Bounds3D::from_mesh(&mesh); // todo: no need to reaclc since only translation and scale are applied
             out.push(SlicerModel {
@@ -147,12 +164,26 @@ impl App {
                 match slicer.slice_config.mode {
                     SliceMode::Raster => {
                         let mut layers = slicer.slice_raster();
-                        post_processing.process(
+                        let reports = post_processing.process(
                             &slicer.slice_config,
                             &mut layers,
                             &hollow_targets,
                             post_process,
                         );
+
+                        let warnings = (hollow_names.iter().zip(reports))
+                            .filter(|(_, report)| !report.closed_cavities.is_empty())
+                            .map(|(name, report)| {
+                                let cavities = &report.closed_cavities;
+                                let volume = cavities.iter().sum::<f32>() / 1000.0;
+                                let s = if cavities.len() == 1 { "y" } else { "ies" };
+                                format!(
+                                    "{name}: {} closed cavit{s} ({volume:.2} mL)",
+                                    cavities.len()
+                                )
+                            })
+                            .collect::<Vec<_>>();
+                        *slice_operation.warnings.lock() = warnings;
                         slice_operation.add_raster_result(slicer.slice_config, layers, triangles);
                     }
                     SliceMode::Vector => {

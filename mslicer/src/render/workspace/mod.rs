@@ -6,6 +6,7 @@ use wgpu::{CommandBuffer, CommandEncoder, Device, Queue, RenderPass};
 use crate::{
     core::App,
     render::workspace::{
+        drain_hole::DrainHolePipeline,
         line::LineDispatch,
         model::{ModelPipeline, Target},
         point::PointDispatch,
@@ -13,6 +14,7 @@ use crate::{
     },
 };
 
+pub mod drain_hole;
 pub mod line;
 pub mod model;
 pub mod point;
@@ -21,6 +23,7 @@ pub mod support;
 pub struct WorkspaceRenderResources {
     pub model: ModelPipeline,
     pub support: SupportPipeline,
+    pub drain_hole: DrainHolePipeline,
 
     pub point: PointDispatch,
     pub solid_line: LineDispatch,
@@ -52,6 +55,7 @@ impl CallbackTrait for WorkspaceRenderCallback {
 
         workspace.model.prepare(&gcx, encoder, app, view);
         workspace.support.prepare(&gcx, app);
+        workspace.drain_hole.prepare(&gcx, app);
         workspace.solid_line.prepare(&gcx, app);
         workspace.point.prepare(&gcx, app);
 
@@ -71,6 +75,7 @@ impl CallbackTrait for WorkspaceRenderCallback {
         workspace.model.paint(render_pass, app, Target::Viewport);
         workspace.point.paint(render_pass);
         workspace.support.paint(render_pass, app);
+        workspace.drain_hole.paint(render_pass, app);
     }
 }
 

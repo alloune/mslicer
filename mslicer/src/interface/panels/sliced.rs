@@ -70,6 +70,7 @@ const DETECT_ISLANDS_DESC: &str =
     "Will color disconnected chunks of voxels red in the slice preview.";
 const SURFACE_AREA_DESC: &str = "Surface area in cm² of each layer. Layers with higher areas will adhere more to the FEP potentially causing print failures.";
 const SLICING_DEFECTS: &str = "There were (potential) slicing defects detected on {layers} layer{s}. Try using the mesh repair tool and slicing again.";
+const CLOSED_CAVITIES: &str = "Some hollowed models have cavities with no drain hole. Uncured resin will stay trapped inside and they act as suction cups while printing. Add drain holes with the drain hole tool (4) and slice again.";
 const DEFECT_EXPL: &str = "Defective meshes can cause incorrect slicing. See how many defects were detected in each layer.";
 
 pub fn ui(app: &mut App, ui: &mut Ui, _ctx: &Context) {
@@ -97,6 +98,17 @@ pub fn ui(app: &mut App, ui: &mut Ui, _ctx: &Context) {
                         .replace("{s}", if layers == 1 { "" } else { "s" });
                     app.popup
                         .open(Popup::simple("Slicing Defects", PopupIcon::Warning, body));
+                }
+
+                let warnings = mem::take(&mut *slice_operation.warnings.lock());
+                if !warnings.is_empty() {
+                    let list = warnings
+                        .iter()
+                        .map(|x| format!("\n• {x}"))
+                        .collect::<String>();
+                    let body = format!("{CLOSED_CAVITIES}\n{list}");
+                    app.popup
+                        .open(Popup::simple("Closed Cavities", PopupIcon::Warning, body));
                 }
 
                 let layers = result.inner.layers();

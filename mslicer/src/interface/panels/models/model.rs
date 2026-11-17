@@ -37,7 +37,8 @@ const WARN_OUT_OF_BOUNDS: &str = "This mesh extends beyond the printer volume an
 const SUPPORTABLE_TIP: &str =
     "Acceleration structures have been built for this mesh.\nSupports can be placed or generated.";
 const UNIT_TIP: &str = "Common polygon mesh formats like .stl and .obj don't include unit information. For this reason you need to manually specify the units for each mesh, although Millimeters, the default, is often correct.";
-const HOLLOW_TIP: &str = "Removes the inside of the model when slicing, keeping walls of the given thickness. Saves resin and reduces suction forces.\nAdd drain holes so uncured resin can escape the cavity.";
+const HOLLOW_TIP: &str = "Removes the inside of the model when slicing, keeping walls of the given thickness. Saves resin and reduces suction forces.\nAdd drain holes so uncured resin can escape the cavity. Cavities smaller than 0.05 mL are left solid.";
+const DRAIN_HOLE_TIP: &str = "Drain holes let uncured resin flow out of the cavity and air in, which avoids suction forces while printing.\nSelect the drain hole tool (4) in the viewport toolbar, then click on the model to place one. Placing two holes near the bottom of the print works best.";
 const CUSTOM_UNIT_TIP: &str = "To use a custom unit, input the conversion factor from the input unit to Millimeters. For example if your mesh was defined in feet (for some reason) you would use 30.48.";
 
 pub fn model_entry(
@@ -372,6 +373,57 @@ pub fn model_properties(
             );
             editing.then(|| model.hollow.wall_thickness = Milimeters::new(wall));
             ui.end_row();
+
+            ui.horizontal(|ui| {
+                ui.label("Drain Holes");
+                ui.label(INFO).on_hover_text(DRAIN_HOLE_TIP);
+            });
+            ui.horizontal(|ui| {
+                let count = model.drain_holes.len();
+                if count == 0 && model.hollow.enabled {
+                    let color = ui.visuals().warn_fg_color;
+                    ui.colored_label(color, concatcp!(WARNING, " None"))
+                        .on_hover_text(DRAIN_HOLE_TIP);
+                } else {
+                    ui.label(count.to_string());
+                }
+
+                if count > 0 && ui.button(concatcp!(TRASH, " Clear")).clicked() {
+                    let old = ModelAction::DrainHoles(model.drain_holes.clone());
+                    app.history.track_model(id, old);
+                    model.drain_holes.clear();
+                }
+            });
+            ui.end_row();
+
+            ui.label("Hole Diameter");
+            DragValue::new(&mut app.state.drain_hole.diameter)
+                .range(0.5..=10.0)
+                .speed(0.05)
+                .max_decimals(2)
+                .suffix(" mm")
+                .ui(ui)
+                .on_hover_text("Diameter of the next drain holes you place.");
+            ui.end_row();
+
+            let mut remove = None;
+            for (i, hole) in model.drain_holes.iter().enumerate() {
+                ui.label(format!("Hole {}", i + 1));
+                ui.horizontal(|ui| {
+                    ui.label(format!("Ø {:.2} mm", hole.radius * 2.0));
+                    let button = ui
+                        .small_button(TRASH)
+                        .on_hover_text("Remove this drain hole");
+                    button.clicked().then(|| remove = Some(i));
+                });
+                ui.end_row();
+            }
+
+            if let Some(i) = remove {
+                let old = ModelAction::DrainHoles(model.drain_holes.clone());
+                app.history.track_model(id, old);
+                model.drain_holes.remove(i);
+            }
         });
     });
 

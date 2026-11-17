@@ -16,7 +16,7 @@ use slicer::{
         mesh::{HalfEdgeMesh, Mesh},
         partitioning::Bvh,
     },
-    post_process::hollowing::HollowConfig,
+    post_process::hollowing::{DrainHole, HollowConfig},
 };
 
 use crate::{
@@ -40,6 +40,7 @@ pub struct Model {
     pub color: LinearRgb<f32>,
     pub exposure: u8,
     pub hollow: HollowConfig,
+    pub drain_holes: Vec<DrainHole>,
     pub hidden: bool,
     pub ui: ModelUi,
 
@@ -91,6 +92,7 @@ impl Model {
             hidden: false,
             exposure: 255,
             hollow: HollowConfig::default(),
+            drain_holes: Vec::new(),
             ui: ModelUi::default(),
 
             warnings: MeshWarnings::empty(),
@@ -121,6 +123,11 @@ impl Model {
 
     pub fn with_hollow(mut self, hollow: HollowConfig) -> Self {
         self.hollow = hollow;
+        self
+    }
+
+    pub fn with_drain_holes(mut self, drain_holes: Vec<DrainHole>) -> Self {
+        self.drain_holes = drain_holes;
         self
     }
 
@@ -338,6 +345,7 @@ impl Clone for Model {
 
             exposure: self.exposure,
             hollow: self.hollow,
+            drain_holes: self.drain_holes.clone(),
 
             warnings: self.warnings,
             buffers: None,

@@ -13,7 +13,8 @@ use nalgebra::{Vector2, Vector3};
 use slicer::{
     geometry::mesh::MeshId,
     post_process::{
-        elephant_foot_fixer::ElephantFootFixer, hollowing::HollowConfig,
+        elephant_foot_fixer::ElephantFootFixer,
+        hollowing::{DrainHole, HollowConfig},
         variable_layer_height::VariableLayerHeight,
     },
 };
@@ -97,6 +98,7 @@ pub enum ModelAction {
     Rotation(Vector3<f32>),
     RelativeExposure(u8),
     Hollow(HollowConfig),
+    DrainHoles(Vec<DrainHole>),
     Collection(Option<CollectionId>),
     Move(usize, Option<CollectionId>),
 }
@@ -331,6 +333,7 @@ impl ModelAction {
             Self::Rotation(_) => ActionDescription::new("Rotated Model"),
             Self::RelativeExposure(_) => ActionDescription::new("Changed Model Exposure"),
             Self::Hollow(_) => ActionDescription::new("Changed Model Hollowing"),
+            Self::DrainHoles(_) => ActionDescription::new("Changed Drain Holes"),
             Self::Collection(_) => ActionDescription::new("Changed Model Collection"),
             Self::Move(..) => ActionDescription::new("Moved Model"),
         }
@@ -365,6 +368,9 @@ impl ModelAction {
                 Self::RelativeExposure(mem::replace(&mut model.exposure, exposure))
             }
             Self::Hollow(hollow) => Self::Hollow(mem::replace(&mut model.hollow, hollow)),
+            Self::DrainHoles(holes) => {
+                Self::DrainHoles(mem::replace(&mut model.drain_holes, holes))
+            }
             Self::Collection(collection) => {
                 Self::Collection(mem::replace(&mut model.collection, collection))
             }

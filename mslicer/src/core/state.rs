@@ -2,10 +2,10 @@ use std::{sync::Arc, time::Instant};
 
 use common::color::SRgb;
 use egui::Vec2;
-use egui_phosphor::regular::{CURSOR_CLICK, LINE_SEGMENT, TRIANGLE};
+use egui_phosphor::regular::{CURSOR_CLICK, DROP_HALF_BOTTOM, LINE_SEGMENT, TRIANGLE};
 use egui_tracing::EventCollector;
 use nalgebra::{Matrix4, Vector2, Vector3};
-use slicer::geometry::mesh::Mesh;
+use slicer::{geometry::mesh::Mesh, post_process::hollowing::DrainHole};
 use wgpu::Device;
 
 use crate::{
@@ -38,6 +38,7 @@ pub struct UiState {
     pub selected_printer: SelectedPrinter,
     pub selected_supports: SelectedSupports,
     pub support_preview: Option<Mesh>,
+    pub drain_hole: DrainHoleTool,
     pub selected_remap_point: Option<u8>,
 
     // remote send ui
@@ -85,6 +86,23 @@ pub enum Tool {
     Select,
     Support,
     Orient,
+    DrainHole,
+}
+
+pub struct DrainHoleTool {
+    /// Diameter of newly placed drain holes, in mm.
+    pub diameter: f32,
+    /// The hole that clicking would place, on the hovered model.
+    pub preview: Option<(ModelId, DrainHole)>,
+}
+
+impl Default for DrainHoleTool {
+    fn default() -> Self {
+        Self {
+            diameter: 3.0,
+            preview: None,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -152,13 +170,14 @@ impl PreviewMode {
 }
 
 impl Tool {
-    pub const ALL: [Self; 3] = [Self::Select, Self::Support, Self::Orient];
+    pub const ALL: [Self; 4] = [Self::Select, Self::Support, Self::Orient, Self::DrainHole];
 
     pub fn keybind(&self) -> Keybind {
         match self {
             Tool::Select => Keybind::Pointer,
             Tool::Support => Keybind::Support,
             Tool::Orient => Keybind::Orient,
+            Tool::DrainHole => Keybind::DrainHole,
         }
     }
 
@@ -167,6 +186,7 @@ impl Tool {
             Tool::Select => CURSOR_CLICK,
             Tool::Support => LINE_SEGMENT,
             Tool::Orient => TRIANGLE,
+            Tool::DrainHole => DROP_HALF_BOTTOM,
         }
     }
 
@@ -175,6 +195,7 @@ impl Tool {
             Tool::Select => "Select (Default)",
             Tool::Support => "Support Placement",
             Tool::Orient => "Orient to Face",
+            Tool::DrainHole => "Drain Hole Placement",
         }
     }
 }

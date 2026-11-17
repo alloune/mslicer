@@ -3,6 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+mod drain_holes;
 mod logs;
 mod models;
 mod notes;

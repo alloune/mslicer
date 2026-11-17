@@ -13,7 +13,10 @@ use crate::{
         project::model::Model,
         state::{GeometryHit, Tool, WorkspaceHover},
     },
-    interface::{components::grid, panels::supports::manual_support_placement},
+    interface::{
+        components::grid,
+        panels::{drain_holes::drain_hole_placement, supports::manual_support_placement},
+    },
     render::{
         interface::basis::BasisRenderCallback,
         workspace::{WorkspaceRenderCallback, model::pick::pick_selection},
@@ -23,6 +26,10 @@ use crate::{
 
 const CANT_SUPPORT: &str =
     "Supports can't yet be placed. Click to initialize acceleration structures.";
+const CANT_DRAIN_HOLE: &str =
+    "Drain holes can't yet be placed. Click to initialize acceleration structures.";
+const DRAIN_HOLE_NOT_HOLLOW: &str =
+    "Hollowing is disabled for this model: its drain holes are ignored when slicing.";
 const TOGGLE_HOVER_TIP: &str = "Toggle hover overlay.\nShift click to toggle detailed view.";
 
 pub fn ui(app: &mut App, ui: &mut Ui, ctx: &Context) {
@@ -70,6 +77,12 @@ pub fn ui(app: &mut App, ui: &mut Ui, ctx: &Context) {
         app.state.support_preview = None;
     }
 
+    if app.state.tool == Tool::DrainHole {
+        drain_hole_placement(app, false);
+    } else {
+        app.state.drain_hole.preview = None;
+    }
+
     if response.clicked() && !is_moving {
         match app.state.tool {
             Tool::Select => {
@@ -97,6 +110,7 @@ pub fn ui(app: &mut App, ui: &mut Ui, ctx: &Context) {
                     app.tasks.add(BuildAccelerationStructures::new(model));
                 }
             }
+            Tool::DrainHole => drain_hole_placement(app, true),
             Tool::Orient => {
                 let platform = app.project.slice_config.platform_size;
                 if let Some(hover) = app.state.hovered_geometry
@@ -226,7 +240,10 @@ fn paint_hover_overlay(ui: &mut Ui, app: &mut App, hover: GeometryHit, px: Pos2)
         return;
     };
 
-    if !enabled && !(app.state.tool == Tool::Support && !model.has_acceleration_structures()) {
+    let needs_acceleration = matches!(app.state.tool, Tool::Support | Tool::DrainHole)
+        && !model.has_acceleration_structures();
+    let hole_ignored = app.state.tool == Tool::DrainHole && !model.hollow.enabled;
+    if !enabled && !needs_acceleration && !hole_ignored {
         return;
     }
 
@@ -321,9 +338,15 @@ fn paint_hover_overlay(ui: &mut Ui, app: &mut App, hover: GeometryHit, px: Pos2)
                         });
                     }
 
-                    if app.state.tool == Tool::Support && !model.has_acceleration_structures() {
+                    if needs_acceleration {
                         enabled.then(|| ui.add_space(8.0));
-                        ui.label(CANT_SUPPORT);
+                        ui.label(match app.state.tool {
+                            Tool::DrainHole => CANT_DRAIN_HOLE,
+                            _ => CANT_SUPPORT,
+                        });
+                    } else if hole_ignored {
+                        enabled.then(|| ui.add_space(8.0));
+                        ui.label(DRAIN_HOLE_NOT_HOLLOW);
                     }
                 })
                 .response;
